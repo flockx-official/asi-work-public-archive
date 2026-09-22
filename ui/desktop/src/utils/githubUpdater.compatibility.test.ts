@@ -38,7 +38,7 @@ const release = { tag_name: 'v1.51.0', name: 'Goose', assets };
 function generatedRequirements(minimumMacOSVersion: string) {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'goose-fallback-release-test-'));
   try {
-    for (const name of ['Goose.zip', 'Goose_intel_mac.zip']) {
+    for (const name of ['ASI-Work.zip', 'ASI-Work_intel_mac.zip']) {
       fs.writeFileSync(path.join(directory, name), 'archive fixture');
       fs.writeFileSync(
         path.join(directory, `${name}.macos.json`),
