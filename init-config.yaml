@@ -1,0 +1,3 @@
+# ASI:Work first-run defaults, applied when no goose config exists (see CUSTOM_DISTROS.md)
+GOOSE_PROVIDER: asi_one
+GOOSE_MODEL: asi1

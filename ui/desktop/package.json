@@ -1,8 +1,8 @@
 {
   "name": "goose-app",
-  "productName": "Goose",
+  "productName": "ASI-Work",
   "version": "1.52.0",
-  "description": "Goose App",
+  "description": "ASI:Work desktop agent, powered by ASI:One",
   "engines": {
     "node": "^24.10.0",
     "pnpm": ">=10.30.0"

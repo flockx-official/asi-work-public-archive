@@ -1,0 +1,47 @@
+{
+  "name": "asi_one",
+  "engine": "openai",
+  "display_name": "ASI:One",
+  "description": "ASI:One models for development and everyday work: asi1, asi1-ultra, and asi1-mini",
+  "api_key_env": "ASI_ONE_API_KEY",
+  "base_url": "https://api.asi1.ai/v1",
+  "models": [
+    {
+      "name": "asi1",
+      "context_limit": 196608,
+      "input_token_cost": null,
+      "output_token_cost": null,
+      "currency": null,
+      "supports_cache_control": null,
+      "reasoning": true
+    },
+    {
+      "name": "asi1-ultra",
+      "context_limit": 1000000,
+      "input_token_cost": null,
+      "output_token_cost": null,
+      "currency": null,
+      "supports_cache_control": null,
+      "reasoning": true
+    },
+    {
+      "name": "asi1-mini",
+      "context_limit": 262144,
+      "input_token_cost": null,
+      "output_token_cost": null,
+      "currency": null,
+      "supports_cache_control": null,
+      "reasoning": true
+    }
+  ],
+  "headers": null,
+  "timeout_seconds": null,
+  "preserves_thinking": true,
+  "supports_streaming": true,
+  "setup": {
+    "category": "model",
+    "setup_method": "single_api_key",
+    "group": "default",
+    "docs_url": "https://docs.asi1.ai"
+  }
+}
