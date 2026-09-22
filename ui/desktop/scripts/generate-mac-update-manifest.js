@@ -66,12 +66,12 @@ function yamlString(value) {
 function writeManifest({ directory, version }) {
   const files = [
     {
-      sourceName: 'Goose.zip',
-      updateName: 'Goose-darwin-arm64.zip',
+      sourceName: 'ASI-Work.zip',
+      updateName: 'ASI-Work-darwin-arm64.zip',
     },
     {
-      sourceName: 'Goose_intel_mac.zip',
-      updateName: 'Goose-darwin-x64.zip',
+      sourceName: 'ASI-Work_intel_mac.zip',
+      updateName: 'ASI-Work-darwin-x64.zip',
     },
   ];
 

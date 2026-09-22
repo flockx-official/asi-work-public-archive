@@ -1,0 +1,180 @@
+name: ASI:Work Release
+
+# ASI:Work release pipeline. Build macOS (arm64 + x64) and Windows desktop
+# bundles via the reusable bundle workflows, publish them as GitHub Releases
+# (the release source of truth and the auto-update channel), and mirror the
+# signed artifacts to S3 behind CloudFront for stable public download URLs.
+#
+# Release tags DO NOT use a "v" prefix (e.g. "0.1.0"): the tag name is passed
+# verbatim as the build version, and Cargo/npm reject "v"-prefixed versions.
+#
+# Required repository configuration (all blocked-on-human until provisioned):
+#   secrets: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
+#            (macOS/Windows signing secrets in the "signing" environment)
+#   vars:    ASI_WORK_S3_BUCKET, ASI_WORK_CLOUDFRONT_DISTRIBUTION_ID, AWS_REGION
+# S3/CloudFront steps are skipped when AWS credentials are not configured, so
+# the pipeline still produces GitHub Releases before the mirror exists.
+
+on:
+  push:
+    tags:
+      - '[0-9]+.*'
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Git ref to build (branch, tag, or SHA). Defaults to the triggering ref.'
+        required: false
+        default: ''
+      version:
+        description: 'Version for the build, no "v" prefix (e.g. 0.1.0)'
+        required: true
+        type: string
+
+concurrency:
+  group: asi-work-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  bundle-macos-arm64:
+    name: Bundle Desktop (macOS arm64)
+    uses: ./.github/workflows/bundle-macos.yml
+    permissions:
+      contents: read
+    with:
+      target: aarch64-apple-darwin
+      package_desktop: true
+      signing: ${{ startsWith(github.ref, 'refs/tags/') }}
+      environment: ${{ startsWith(github.ref, 'refs/tags/') && 'signing' || '' }}
+      version: ${{ inputs.version || github.ref_name }}
+      ref: ${{ inputs.ref || '' }}
+    secrets: inherit
+
+  bundle-macos-x64:
+    name: Bundle Desktop (macOS x64)
+    uses: ./.github/workflows/bundle-macos.yml
+    permissions:
+      contents: read
+    with:
+      target: x86_64-apple-darwin
+      package_desktop: true
+      signing: ${{ startsWith(github.ref, 'refs/tags/') }}
+      environment: ${{ startsWith(github.ref, 'refs/tags/') && 'signing' || '' }}
+      version: ${{ inputs.version || github.ref_name }}
+      ref: ${{ inputs.ref || '' }}
+    secrets: inherit
+
+  bundle-windows:
+    name: Bundle Desktop (Windows x64)
+    uses: ./.github/workflows/bundle-windows.yml
+    permissions:
+      id-token: write
+      contents: read
+    with:
+      package_desktop: true
+      signing: ${{ startsWith(github.ref, 'refs/tags/') }}
+      environment: ${{ startsWith(github.ref, 'refs/tags/') && 'signing' || '' }}
+      version: ${{ inputs.version || github.ref_name }}
+      ref: ${{ inputs.ref || '' }}
+      windows_variant: standard
+    secrets: inherit
+
+  release:
+    name: Release and mirror
+    needs: [bundle-macos-arm64, bundle-macos-x64, bundle-windows]
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    env:
+      VERSION: ${{ github.ref_name }}
+      HAS_AWS: ${{ secrets.AWS_ACCESS_KEY_ID != '' && 'true' || 'false' }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Download release artifacts
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
+        with:
+          pattern: 'ASI-Work-*'
+          merge-multiple: true
+
+      - name: Generate macOS update manifest
+        run: node ui/desktop/scripts/generate-mac-update-manifest.js --version "${VERSION}" --directory .
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8  # v4.2.2
+        with:
+          subject-path: |
+            ASI-Work-darwin-arm64.zip
+            ASI-Work-darwin-x64.zip
+            ASI-Work-win32-x64.zip
+            latest-mac.yml
+            mac-update-requirements.json
+
+      - name: Release versioned (GitHub)
+        uses: ncipollo/release-action@339a81892b84b4eeb0f6e744e4574d79d0d9b8dd  # v1.21.0
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          artifacts: |
+            ASI-Work-darwin-arm64.zip
+            ASI-Work-darwin-x64.zip
+            ASI-Work-win32-x64.zip
+            latest-mac.yml
+            mac-update-requirements.json
+          allowUpdates: true
+          omitBody: true
+          omitPrereleaseDuringUpdate: true
+
+      - name: Release stable channel (GitHub, auto-update)
+        uses: ncipollo/release-action@339a81892b84b4eeb0f6e744e4574d79d0d9b8dd  # v1.21.0
+        with:
+          tag: stable
+          name: Stable
+          token: ${{ secrets.GITHUB_TOKEN }}
+          artifacts: |
+            ASI-Work-darwin-arm64.zip
+            ASI-Work-darwin-x64.zip
+            ASI-Work-win32-x64.zip
+            latest-mac.yml
+            mac-update-requirements.json
+          allowUpdates: true
+          omitBody: true
+          omitPrereleaseDuringUpdate: true
+
+      - name: Configure AWS credentials
+        if: env.HAS_AWS == 'true'
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd  # v6.3.0
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION || 'us-east-2' }}
+
+      - name: Upload S3 mirror (versioned paths)
+        if: env.HAS_AWS == 'true'
+        env:
+          BUCKET: ${{ vars.ASI_WORK_S3_BUCKET }}
+        run: |
+          aws s3 cp "ASI-Work-darwin-arm64.zip" "s3://${BUCKET}/asi-work/${VERSION}/ASI-Work-${VERSION}-mac-arm64.zip" --cache-control "public, max-age=31536000, immutable"
+          aws s3 cp "ASI-Work-darwin-x64.zip" "s3://${BUCKET}/asi-work/${VERSION}/ASI-Work-${VERSION}-mac-x64.zip" --cache-control "public, max-age=31536000, immutable"
+          aws s3 cp "ASI-Work-win32-x64.zip" "s3://${BUCKET}/asi-work/${VERSION}/ASI-Work-${VERSION}-win-x64.zip" --cache-control "public, max-age=31536000, immutable"
+          aws s3 cp "latest-mac.yml" "s3://${BUCKET}/asi-work/${VERSION}/latest-mac.yml" --cache-control "public, max-age=31536000, immutable"
+          aws s3 cp "mac-update-requirements.json" "s3://${BUCKET}/asi-work/${VERSION}/mac-update-requirements.json" --cache-control "public, max-age=31536000, immutable"
+
+      - name: Upload S3 mirror (latest paths, stable filenames)
+        if: env.HAS_AWS == 'true'
+        env:
+          BUCKET: ${{ vars.ASI_WORK_S3_BUCKET }}
+        run: |
+          aws s3 cp "ASI-Work-darwin-arm64.zip" "s3://${BUCKET}/asi-work/latest/ASI-Work-mac-arm64.zip" --cache-control "public, max-age=300"
+          aws s3 cp "ASI-Work-darwin-x64.zip" "s3://${BUCKET}/asi-work/latest/ASI-Work-mac-x64.zip" --cache-control "public, max-age=300"
+          aws s3 cp "ASI-Work-win32-x64.zip" "s3://${BUCKET}/asi-work/latest/ASI-Work-win-x64.zip" --cache-control "public, max-age=300"
+
+      - name: Invalidate CloudFront latest cache
+        if: env.HAS_AWS == 'true'
+        env:
+          DISTRIBUTION_ID: ${{ vars.ASI_WORK_CLOUDFRONT_DISTRIBUTION_ID }}
+        run: aws cloudfront create-invalidation --distribution-id "$DISTRIBUTION_ID" --paths "/asi-work/latest/*"
