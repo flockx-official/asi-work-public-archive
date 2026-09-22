@@ -5,6 +5,7 @@ import tailwindcss from '@tailwindcss/vite';
 export default defineConfig({
   define: {
     'process.env.GOOSE_TUNNEL': JSON.stringify(process.env.GOOSE_TUNNEL !== 'no' && process.env.GOOSE_TUNNEL !== 'none'),
+    'process.env.ASI_WORK_BRANDED': JSON.stringify('1'),
   },
 
   plugins: [tailwindcss()],
