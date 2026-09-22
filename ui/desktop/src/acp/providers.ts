@@ -21,6 +21,18 @@ export type { CanonicalModelInfoDto, ProviderSecretDto };
 const INVENTORY_REFRESH_POLL_INTERVAL_MS = 100;
 const INVENTORY_REFRESH_TIMEOUT_MS = 30_000;
 
+// ASI:Work distribution: in branded builds (ASI_WORK_BRANDED is baked by the
+// renderer vite config), the bundled ASI:One provider is the only built-in
+// provider surfaced in provider and template pickers. User-created custom
+// providers remain visible. Unbranded builds (unit tests) are unchanged.
+const isAsiWorkBrandedBuild = process.env.ASI_WORK_BRANDED === '1';
+
+const BUNDLED_PROVIDER_ALLOWLIST = new Set(['asi_one']);
+
+function isAllowedProviderEntry(entry: ProviderInventoryEntryDto): boolean {
+  return entry.providerType === 'Custom' || BUNDLED_PROVIDER_ALLOWLIST.has(entry.providerId);
+}
+
 function throwIfAborted(signal?: globalThis.AbortSignal) {
   if (signal?.aborted) throw new DOMException('The operation was aborted', 'AbortError');
 }
@@ -99,7 +111,9 @@ function updateRequestToCreate(
 export async function acpListProviderDetails(): Promise<ProviderDetails[]> {
   const client = await getAcpClient();
   const { entries } = await client.goose.providersList_unstable({});
-  return entries.map(providerEntryToDetails);
+  return entries
+    .filter((entry) => !isAsiWorkBrandedBuild || isAllowedProviderEntry(entry))
+    .map(providerEntryToDetails);
 }
 
 export async function acpListSetupProviderDetails(): Promise<ProviderDetails[]> {
@@ -209,7 +223,9 @@ export async function acpListProviderCatalogEntries(
 ): Promise<ProviderTemplateCatalogEntryDto[]> {
   const client = await getAcpClient();
   const { providers } = await client.goose.providersCatalogList_unstable(format ? { format } : {});
-  return providers;
+  return providers.filter(
+    (entry) => !isAsiWorkBrandedBuild || BUNDLED_PROVIDER_ALLOWLIST.has(entry.providerId)
+  );
 }
 
 export async function acpGetProviderTemplate(providerId: string): Promise<ProviderTemplateDto> {

@@ -1,3 +1,31 @@
+# ASI:Work
+
+**ASI:Work** is a custom distribution of [goose](https://github.com/aaif-goose/goose), preconfigured for [ASI:One](https://asi1.ai) models (`asi1`, `asi1-ultra`, `asi1-mini`). It is published by ASI:One as a desktop agent harness for developers and everyday work.
+
+This distribution is not affiliated with or endorsed by the goose project or the Agentic AI Foundation. See [NOTICE.md](NOTICE.md) for the Apache-2.0 attribution and modification notice, and [CUSTOM_DISTROS.md](CUSTOM_DISTROS.md) for upstream's custom-distribution guide.
+
+## Distribution-specific files
+
+Upstream is merged monthly (merge-only, never rebase). All ASI:Work customizations live in:
+
+| File | Change |
+| ---- | ------ |
+| `crates/goose-providers/src/declarative/definitions/asi_one.json` | Bundled ASI:One provider (added) |
+| `crates/goose-providers/src/declarative.rs` | Register `asi_one` in `expose_declarative_providers!` |
+| `crates/goose/src/prompts/system.md` | Agent identity |
+| `init-config.yaml` | First-run provider/model defaults (added) |
+| `ui/desktop/package.json`, `ui/desktop/index.html` | Product name and window title |
+| `ui/desktop/src/main.ts` | Bundled defaults in the `env-macro` block |
+| `ui/desktop/src/acp/providers.ts` | Restrict provider/template pickers to ASI:One |
+| `ui/desktop/src/app-update.yml` | Auto-updater points at this fork |
+| `ui/desktop/scripts/verify-mac-update-resources.js` | Updater verification for this fork |
+| `ui/desktop/forge.config.ts`, `forge.deb.desktop`, `forge.rpm.desktop` | Packaging identity |
+| `NOTICE.md` | Apache-2.0 modification notice (added) |
+
+Desktop app icons are pending design assets and still ship the upstream goose icon.
+
+---
+
 <div align="center">
 
 # goose

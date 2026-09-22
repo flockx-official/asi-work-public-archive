@@ -869,6 +869,17 @@ interface BundledConfig {
 const getBundledConfig = (): BundledConfig => {
   //{env-macro-start}//
   //needed when goose is bundled for a specific provider
+  // ASI:Work is bundled for the ASI:One provider
+  process.env.GOOSE_DEFAULT_PROVIDER = process.env.GOOSE_DEFAULT_PROVIDER || 'asi_one';
+  process.env.GOOSE_DEFAULT_MODEL = process.env.GOOSE_DEFAULT_MODEL || 'asi1';
+  process.env.GOOSE_PREDEFINED_MODELS =
+    process.env.GOOSE_PREDEFINED_MODELS ||
+    JSON.stringify([
+      { name: 'asi1', provider: 'asi_one', alias: 'ASI1', subtext: 'ASI:One', context_limit: 196608, reasoning: true },
+      { name: 'asi1-ultra', provider: 'asi_one', alias: 'ASI1 Ultra', subtext: 'ASI:One', context_limit: 1000000, reasoning: true },
+      { name: 'asi1-mini', provider: 'asi_one', alias: 'ASI1 Mini', subtext: 'ASI:One', context_limit: 262144, reasoning: true },
+    ]);
+  process.env.GOOSE_DISABLE_TELEMETRY = process.env.GOOSE_DISABLE_TELEMETRY || '1';
   //{env-macro-end}//
   return {
     defaultProvider: process.env.GOOSE_DEFAULT_PROVIDER,
