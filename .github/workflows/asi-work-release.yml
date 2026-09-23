@@ -1,9 +1,10 @@
 name: ASI:Work Release
 
 # ASI:Work release pipeline. Build macOS (arm64 + x64) and Windows desktop
-# bundles via the reusable bundle workflows, publish them as GitHub Releases
-# (the release source of truth and the auto-update channel), and mirror the
-# signed artifacts to S3 behind CloudFront for stable public download URLs.
+# bundles via the reusable bundle workflows, publish the versioned artifacts
+# as a GitHub Release (the internal release record), and publish the
+# installers and update manifests to S3 behind CloudFront, which serves the
+# stable public download URLs and the auto-update feed.
 #
 # Release tags DO NOT use a "v" prefix (e.g. "0.1.0"): the tag name is passed
 # verbatim as the build version, and Cargo/npm reject "v"-prefixed versions.
@@ -109,35 +110,19 @@ jobs:
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8  # v4.2.2
         with:
           subject-path: |
-            ASI-Work-darwin-arm64.zip
-            ASI-Work-darwin-x64.zip
+            ASI-Work-mac-arm64.zip
+            ASI-Work-mac-x64.zip
             ASI-Work-win32-x64.zip
             latest-mac.yml
             mac-update-requirements.json
 
-      - name: Release versioned (GitHub)
+      - name: Release versioned (GitHub, internal release record)
         uses: ncipollo/release-action@339a81892b84b4eeb0f6e744e4574d79d0d9b8dd  # v1.21.0
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           artifacts: |
-            ASI-Work-darwin-arm64.zip
-            ASI-Work-darwin-x64.zip
-            ASI-Work-win32-x64.zip
-            latest-mac.yml
-            mac-update-requirements.json
-          allowUpdates: true
-          omitBody: true
-          omitPrereleaseDuringUpdate: true
-
-      - name: Release stable channel (GitHub, auto-update)
-        uses: ncipollo/release-action@339a81892b84b4eeb0f6e744e4574d79d0d9b8dd  # v1.21.0
-        with:
-          tag: stable
-          name: Stable
-          token: ${{ secrets.GITHUB_TOKEN }}
-          artifacts: |
-            ASI-Work-darwin-arm64.zip
-            ASI-Work-darwin-x64.zip
+            ASI-Work-mac-arm64.zip
+            ASI-Work-mac-x64.zip
             ASI-Work-win32-x64.zip
             latest-mac.yml
             mac-update-requirements.json
@@ -158,20 +143,22 @@ jobs:
         env:
           BUCKET: ${{ vars.ASI_WORK_S3_BUCKET }}
         run: |
-          aws s3 cp "ASI-Work-darwin-arm64.zip" "s3://${BUCKET}/asi-work/${VERSION}/ASI-Work-${VERSION}-mac-arm64.zip" --cache-control "public, max-age=31536000, immutable"
-          aws s3 cp "ASI-Work-darwin-x64.zip" "s3://${BUCKET}/asi-work/${VERSION}/ASI-Work-${VERSION}-mac-x64.zip" --cache-control "public, max-age=31536000, immutable"
+          aws s3 cp "ASI-Work-mac-arm64.zip" "s3://${BUCKET}/asi-work/${VERSION}/ASI-Work-${VERSION}-mac-arm64.zip" --cache-control "public, max-age=31536000, immutable"
+          aws s3 cp "ASI-Work-mac-x64.zip" "s3://${BUCKET}/asi-work/${VERSION}/ASI-Work-${VERSION}-mac-x64.zip" --cache-control "public, max-age=31536000, immutable"
           aws s3 cp "ASI-Work-win32-x64.zip" "s3://${BUCKET}/asi-work/${VERSION}/ASI-Work-${VERSION}-win-x64.zip" --cache-control "public, max-age=31536000, immutable"
           aws s3 cp "latest-mac.yml" "s3://${BUCKET}/asi-work/${VERSION}/latest-mac.yml" --cache-control "public, max-age=31536000, immutable"
           aws s3 cp "mac-update-requirements.json" "s3://${BUCKET}/asi-work/${VERSION}/mac-update-requirements.json" --cache-control "public, max-age=31536000, immutable"
 
-      - name: Upload S3 mirror (latest paths, stable filenames)
+      - name: Publish S3 update feed (latest paths)
         if: env.HAS_AWS == 'true'
         env:
           BUCKET: ${{ vars.ASI_WORK_S3_BUCKET }}
         run: |
-          aws s3 cp "ASI-Work-darwin-arm64.zip" "s3://${BUCKET}/asi-work/latest/ASI-Work-mac-arm64.zip" --cache-control "public, max-age=300"
-          aws s3 cp "ASI-Work-darwin-x64.zip" "s3://${BUCKET}/asi-work/latest/ASI-Work-mac-x64.zip" --cache-control "public, max-age=300"
+          aws s3 cp "ASI-Work-mac-arm64.zip" "s3://${BUCKET}/asi-work/latest/ASI-Work-mac-arm64.zip" --cache-control "public, max-age=300"
+          aws s3 cp "ASI-Work-mac-x64.zip" "s3://${BUCKET}/asi-work/latest/ASI-Work-mac-x64.zip" --cache-control "public, max-age=300"
           aws s3 cp "ASI-Work-win32-x64.zip" "s3://${BUCKET}/asi-work/latest/ASI-Work-win-x64.zip" --cache-control "public, max-age=300"
+          aws s3 cp "latest-mac.yml" "s3://${BUCKET}/asi-work/latest/latest-mac.yml" --cache-control "public, max-age=300"
+          aws s3 cp "mac-update-requirements.json" "s3://${BUCKET}/asi-work/latest/mac-update-requirements.json" --cache-control "public, max-age=300"
 
       - name: Invalidate CloudFront latest cache
         if: env.HAS_AWS == 'true'

@@ -67,11 +67,11 @@ function writeManifest({ directory, version }) {
   const files = [
     {
       sourceName: 'ASI-Work.zip',
-      updateName: 'ASI-Work-darwin-arm64.zip',
+      updateName: 'ASI-Work-mac-arm64.zip',
     },
     {
       sourceName: 'ASI-Work_intel_mac.zip',
-      updateName: 'ASI-Work-darwin-x64.zip',
+      updateName: 'ASI-Work-mac-x64.zip',
     },
   ];
 
