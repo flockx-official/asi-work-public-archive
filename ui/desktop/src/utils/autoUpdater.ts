@@ -339,12 +339,13 @@ export function setupAutoUpdater(tray?: Tray) {
   log.info(`App path: ${app.getAppPath()}`);
   log.info(`Resources path: ${process.resourcesPath}`);
 
-  // Set the feed URL for GitHub releases
+  // ASI:Work serves updates from the CloudFront feed; end-user update traffic never reaches GitHub.
   const feedConfig = {
-    provider: 'github' as const,
-    owner: 'aaif-goose',
-    repo: 'goose',
-    releaseType: 'release' as const,
+    provider: 'generic' as const,
+    url: (process.env.ASI_WORK_UPDATE_FEED || 'https://downloads.asi1.ai/asi-work/latest/').replace(
+      /\/+$/,
+      ''
+    ),
   };
 
   log.info('Setting feed URL with config:', feedConfig);
