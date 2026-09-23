@@ -444,8 +444,9 @@ export async function prepareUpdateInstall(options: {
 
 export class GitHubUpdater {
   private readonly bundleName = process.env.GOOSE_BUNDLE_NAME || 'Goose';
-  private readonly updateFeedUrl =
-    process.env.ASI_WORK_UPDATE_FEED || 'https://downloads.asi1.ai/asi-work/latest/';
+  private readonly updateFeedUrl = (
+    process.env.ASI_WORK_UPDATE_FEED || 'https://downloads.asi1.ai/asi-work/latest/'
+  ).replace(/\/+$/, '');
 
   async checkForUpdates(): Promise<UpdateCheckResult> {
     const startTime = Date.now();

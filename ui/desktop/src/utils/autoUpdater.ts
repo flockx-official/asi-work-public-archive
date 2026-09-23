@@ -342,8 +342,10 @@ export function setupAutoUpdater(tray?: Tray) {
   // ASI:Work serves updates from the CloudFront feed; end-user update traffic never reaches GitHub.
   const feedConfig = {
     provider: 'generic' as const,
-    url:
-      process.env.ASI_WORK_UPDATE_FEED || 'https://downloads.asi1.ai/asi-work/latest/',
+    url: (process.env.ASI_WORK_UPDATE_FEED || 'https://downloads.asi1.ai/asi-work/latest/').replace(
+      /\/+$/,
+      ''
+    ),
   };
 
   log.info('Setting feed URL with config:', feedConfig);
