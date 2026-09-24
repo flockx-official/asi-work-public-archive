@@ -6,6 +6,9 @@ on:
       - main
 
 permissions:
+  # Required for actions/checkout in private repos (upstream's public fork
+  # allowed anonymous clone, so this was never needed there)
+  contents: read
   pull-requests: write
   issues: write
 
@@ -19,10 +22,10 @@ jobs:
         run: |
           # Get PR author
           PR_AUTHOR="${{ github.event.pull_request.user.login }}"
-          
+
           # Convert comma-separated list to array
           IFS=',' read -ra QUARANTINE_LIST <<< "${{ vars.QUARANTINED_USERS }}"
-          
+
           # Check if PR author is in the quarantine list
           for user in "${QUARANTINE_LIST[@]}"; do
             if [ "$user" = "$PR_AUTHOR" ]; then
@@ -32,7 +35,7 @@ jobs:
               exit 0
             fi
           done
-          
+
           echo "continuing..."
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
