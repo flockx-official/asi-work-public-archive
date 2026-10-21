@@ -2,7 +2,7 @@
 
 ## Background
 
-Work agents were reporting "the user declined {tool} so I stopped" for tool calls
+Work agents were reporting "the user declined the tool call so I stopped" for tool calls
 the user never declined. The root cause analysis (RCA) traced this to a harness
 bug, not model hallucination:
 
