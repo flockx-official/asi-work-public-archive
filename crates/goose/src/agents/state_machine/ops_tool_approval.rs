@@ -22,6 +22,7 @@ use crate::tool_inspection::{
 use tokio::sync::Mutex;
 
 pub const TOOL_EXECUTABLE_KEY: &str = "goose.executable";
+pub const TOOL_DECLINED_KEY: &str = "goose.declined";
 
 pub struct ToolApprovalOperation<'a> {
     goose_mode: &'a Mutex<GooseMode>,
@@ -108,6 +109,9 @@ impl Operation<Session, GooseEffect> for ToolApprovalOperation<'_> {
 
             for request in permission_check_result.denied {
                 effects.push(mark_executable(&request.id, false));
+                // Durable marker so the resume path can tell a policy denial
+                // apart from an approval card lost across a crash.
+                effects.push(mark_declined(&request.id));
             }
 
             for request in permission_check_result.needs_approval {
@@ -239,9 +243,14 @@ impl ApprovalState {
                     || self.approval_requests.contains(&request.id)
                     || self.approval_responses.contains_key(&request.id)
                     || request.was_executed_externally()
-                    || request_executable(request) == Some(false)
                     || request.tool_call.is_err()
                 {
+                    return None;
+                }
+                // executable=false without a durable decline marker means
+                // the approval card was lost across a crash/resume: re-raise
+                // it so the disposition logic cannot read it as a decline.
+                if request_declined(request) == Some(true) {
                     return None;
                 }
                 Some(request.clone())
@@ -282,6 +291,14 @@ pub fn request_executable(request: &ToolRequest) -> Option<bool> {
         .and_then(|value| value.as_bool())
 }
 
+pub fn request_declined(request: &ToolRequest) -> Option<bool> {
+    request
+        .tool_meta
+        .as_ref()
+        .and_then(|meta| meta.get(TOOL_DECLINED_KEY))
+        .and_then(|value| value.as_bool())
+}
+
 fn permission_allows(permission: &Permission) -> bool {
     matches!(permission, Permission::AllowOnce | Permission::AlwaysAllow)
 }
@@ -290,6 +307,14 @@ fn mark_executable(tool_call_id: &str, executable: bool) -> GooseEffect {
     ConversationEffect::PatchToolRequestMeta {
         tool_call_id: tool_call_id.to_string(),
         patch: serde_json::json!({ TOOL_EXECUTABLE_KEY: executable }),
+    }
+    .into()
+}
+
+fn mark_declined(tool_call_id: &str) -> GooseEffect {
+    ConversationEffect::PatchToolRequestMeta {
+        tool_call_id: tool_call_id.to_string(),
+        patch: serde_json::json!({ TOOL_DECLINED_KEY: true }),
     }
     .into()
 }
