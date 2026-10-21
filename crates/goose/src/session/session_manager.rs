@@ -684,7 +684,7 @@ impl SessionManager {
 
     pub async fn update_message_metadata<F>(&self, id: &str, message_id: &str, f: F) -> Result<()>
     where
-        F: FnOnce(
+        F: Fn(
             crate::conversation::message::MessageMetadata,
         ) -> crate::conversation::message::MessageMetadata,
     {
@@ -2732,11 +2732,28 @@ impl SessionStorage {
         f: F,
     ) -> Result<()>
     where
-        F: FnOnce(
+        F: Fn(
             crate::conversation::message::MessageMetadata,
         ) -> crate::conversation::message::MessageMetadata,
     {
         let pool = self.pool().await?;
+        with_busy_retry(|| {
+            Self::update_message_metadata_inner(pool, session_id, message_id, f)
+        })
+        .await
+    }
+
+    async fn update_message_metadata_inner<F>(
+        pool: Pool<Sqlite>,
+        session_id: &str,
+        message_id: &str,
+        f: F,
+    ) -> Result<()>
+    where
+        F: Fn(
+            crate::conversation::message::MessageMetadata,
+        ) -> crate::conversation::message::MessageMetadata,
+    {
         let mut tx = pool.begin_with("BEGIN IMMEDIATE").await?;
 
         let current_metadata_json = sqlx::query_scalar::<_, String>(
@@ -2799,14 +2816,15 @@ impl SessionStorage {
                 let Some(message_id) = message_id else {
                     return Ok(());
                 };
-                return self
-                    .update_tool_request_meta_by_message_id(
+                return with_busy_retry(|| {
+                    self.update_tool_request_meta_by_message_id(
                         session_id,
                         &message_id,
                         tool_call_id,
-                        patch,
+                        patch.clone(),
                     )
-                    .await;
+                })
+                .await;
             }
         }
 
