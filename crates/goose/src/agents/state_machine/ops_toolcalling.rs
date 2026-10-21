@@ -20,9 +20,7 @@ use crate::agents::tool_execution::{
 };
 use crate::agents::AgentEvent;
 use crate::config::GooseMode;
-use crate::conversation::message::{
-    ActionRequiredData, Message, MessageContent, ToolRequest,
-};
+use crate::conversation::message::{ActionRequiredData, Message, MessageContent, ToolRequest};
 use crate::conversation::Conversation;
 use crate::hints::load_hints::SubdirectoryHintTracker;
 use crate::hooks::{HookChainOutcome, HookContext, HookEvent, HookManager};
